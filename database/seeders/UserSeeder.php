@@ -8,55 +8,43 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 
-class UserSeeder extends Seeder
-{
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
-    {
+class UserSeeder extends Seeder {
+    public function run() {
         Model::unguard();
-        $users = [
-            'super@user.com' => [
-                'name' => 'Super',
-                'role' => UserType::SUPER
-            ],
-            'admin@user.com' => [
+        $users = array(
+            'admin@user.com'    => array(
                 'name' => 'Admin',
-                'role' => UserType::ADMIN
-            ],
-            'merchant@user.com' => [
-                'name' => 'Shop Owner',
-                'role' => UserType::MERCHANT
-            ],
-            'waiter@user.com' => [
+                'role' => UserType::ADMIN,
+            ),
+            'merchant@user.com' => array(
+                'name' => 'Merchant',
+                'role' => UserType::MERCHANT,
+            ),
+            'waiter@user.com'   => array(
                 'name' => 'Waiter',
-                'role' => UserType::WAITER
-            ],
-            'customer@user.com' => [
+                'role' => UserType::WAITER,
+            ),
+            'customer@user.com' => array(
                 'name' => 'Customer',
-                'role' => UserType::CUSTOMER
-            ],
-        ];
+                'role' => UserType::CUSTOMER,
+            ),
+        );
         $i = 0;
         foreach ($users as $email => $user) {
             /** @var User $model */
-            $model = User::query()->create([
-                'first_name' => $user['name'],
-                'last_name' => 'User',
-                'password' => bcrypt('secret'),
-                'email' => $email,
+            $model = User::query()->create(array(
+                'name'              => $user['name'],
+                'password'          => bcrypt('secret'),
+                'email'             => $email,
                 'email_verified_at' => now(),
-                'phone' => '+880170000000'. ++$i,
-                'phone_verified_at' => now()
-            ]);
+                'phone'             => '01675339460' . ++$i,
+                'phone_verified_at' => now(),
+            ));
             /** @var Role $role */
-            $role = Role::query()->create([
-                'name' => $user['role'],
-                'display_name' => ucfirst($user['role'])
-            ]);
+            $role = Role::query()->create(array(
+                'name'         => $user['role'],
+                'display_name' => ucfirst($user['role']),
+            ));
             $model->attachRole($role);
         }
         Model::reguard();

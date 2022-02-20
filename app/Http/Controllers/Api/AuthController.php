@@ -4,94 +4,102 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\Status;
 use App\Enums\UserType;
-use App\Http\Requests\LoginRequest;
-use App\Http\Requests\RegistrationRequest;
-use App\Models\Image;
+use App\Http\Requests\AdminLoginRequest;
+use App\Http\Requests\UserLoginRequest;
+use App\Http\Requests\UserRegistrationRequest;
+use App\Http\Requests\VerifyOtpRequest;
+use App\Models\Otp;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 
-class AuthController extends Controller
-{
-    /**
-     * Create a new AuthController instance.
-     *
-     * @return void
-     */
-    public function __construct()
-    {
-        $this->middleware('auth:api', ['except' => ['login', 'register']]);
+class AuthController extends ApiController {
+
+    public function __construct() {
+        $this->middleware('auth:api', array('except' => array('login', 'userRegistration', 'verifyOtp', 'userLogin')));
     }
 
-    /**
-     * Get a JWT via given credentials.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function login(LoginRequest $request)
-    {
-        $user = User::where($request->only('phone'))->first();
-        if(!$user){
-            return $this->respondWithToken(false); // signal that the phone doesn't exist in db
+    public function userRegistration(UserRegistrationRequest $request) {
+        $data = $request->validated();
+        //Delete Old OPTS
+        Otp::where($request->only('phone'))->delete();
+
+        $otp = random_int(100000, 999999);
+        $data['otp'] = $otp;
+        $data = Otp::create($data);
+
+        return $this->success($data, "OTP created for 1 hour");
+    }
+
+    public function userLogin(UserLoginRequest $request) {
+        $data = $request->validated();
+        $user = User::where('phone', $data['phone'])->first();
+        if (!$user) {
+            return $this->failed(null, "No user Found with the mobile number");
         }
-        if(!Hash::check($request->input('password'), $user->password) || $user->status !== Status::ACTIVE){
+        //Delete Old OPTS
+        Otp::where($request->only('phone'))->delete();
+
+        $otp = random_int(100000, 999999);
+        //TODO remove otp
+        $data['otp'] = $otp;
+        $data = Otp::create($data);
+        return $this->success($data, "OTP created");
+    }
+
+    public function verifyOtp(VerifyOtpRequest $request) {
+        //TODO add time validation
+        $data = $request->validated();
+        $otp = Otp::where($request->only('phone'))->latest()->first();
+
+        if (!$otp) {
+            return $this->failed(null, "No user Found with the mobile number");
+        }
+        if ($data['otp'] != $otp['otp']) {
+            return $this->failed(null, "Otp did not match");
+        }
+
+        $user = User::where('phone', $data['phone'])->first();
+
+        if ($user) {
+            $otp->delete();
+            return $this->respondWithToken($this->auth()->login($user));
+        } else {
+            $data['name'] = $otp['name'];
+            $data['phone_verified_at'] = now();
+            $user = User::create($data);
+            $user->attachRoles(array(UserType::CUSTOMER));
+            $otp->delete();
+            return $this->respondWithToken($this->auth()->login($user));
+        }
+    }
+
+    public function login(AdminLoginRequest $request) {
+        $user = User::where($request->only('phone'))->first();
+        if (!$user) {
+            return $this->failed([], "No user Found with the mobile number"); // signal that the phone doesn't exist in db
+        }
+        if (!Hash::check($request->input('password'), $user->password) || $user->status !== Status::ACTIVE) {
             return $this->unauthorized(); // phone number exists, but the token doesn't match
         }
 
         return $this->respondWithToken($this->auth()->login($user)); // everything ok, lets login
     }
 
-    /**
-     * @param RegistrationRequest $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function register(RegistrationRequest $request)
-    {
-        $data = Arr::except($request->validated(), 'image');
-        $data['phone_verified_at'] = now();
-        $user = User::create($data);
-        $user->attachRoles([UserType::CUSTOMER]);
-
-        return $this->respondWithToken($this->auth()->login($user));
-    }
-
-    /**
-     * Log the user out (Invalidate the token).
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function logout()
-    {
+    public function logout() {
         $this->auth()->logout();
 
-        return response()->json(['message' => 'Successfully logged out']);
+        return response()->json(array('message' => 'Successfully logged out'));
     }
 
-    /**
-     * Refresh a token.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function refresh()
-    {
+    public function refresh() {
         return $this->respondWithToken($this->auth()->refresh());
     }
 
-    /**
-     * Get the token array structure.
-     *
-     * @param  string $token
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    protected function respondWithToken($token)
-    {
-        return $this->success([
-            'new_user' => !$token,
-            'access_token' => $token ?: '',
-            'token_type' => 'bearer',
-            'expires_in' => $this->auth()->factory()->getTTL() * 60
-        ]);
+    protected function respondWithToken($token) {
+        return $this->success(array(
+            'access_token' => $token ?: 'NAN',
+            'token_type'   => 'Bearer',
+            'expires_in'   => $this->auth()->factory()->getTTL(),
+        ));
     }
 }

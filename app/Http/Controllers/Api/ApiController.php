@@ -11,8 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Tymon\JWTAuth\JWTGuard;
 
-class Controller extends BaseController
-{
+class ApiController extends BaseController {
     /**
      * @param mixed $data
      * @param string $message
@@ -20,30 +19,29 @@ class Controller extends BaseController
      * @param bool $success
      * @return \Illuminate\Http\JsonResponse
      */
-    public function success($data = null, $message = "", $status = 200, $success = true)
-    {
-        $response = [
+    public function success($data = null, $message = "", $status = 200, $success = true) {
+        $response = array(
             'success' => $success,
-            'message' => $message
-        ];
+            'message' => $message,
+        );
 
-        if(isset($data->resource) && $data->resource instanceof AbstractPaginator) {
+        if (isset($data->resource) && $data->resource instanceof AbstractPaginator) {
             $data = $data->resource->toArray();
-        } else if(!($data instanceof LengthAwarePaginator)) {
+        } else if (!($data instanceof LengthAwarePaginator)) {
             $data = compact('data');
-        }else{
+        } else {
             $data = $data->toArray();
         }
 
         $response += $data;
 
-        if(app()->environment() === 'local'){
+        if (app()->environment() === 'local') {
             $log = collect(DB::getQueryLog());
-            $response['queries'] = [
-                'log' => $log->toArray(),
-                'time' => $log->sum('time'),
-                'duplicates' => $log->count() - $log->unique('query')->count()
-            ];
+            $response['queries'] = array(
+                'log'        => $log->toArray(),
+                'time'       => $log->sum('time'),
+                'duplicates' => $log->count() - $log->unique('query')->count(),
+            );
         }
 
         return new JsonResponse($response, $status);
@@ -56,8 +54,7 @@ class Controller extends BaseController
      * @param int $status
      * @return \Illuminate\Http\JsonResponse
      */
-    public function failed($data = null, $message = "", $status = 200)
-    {
+    public function failed($data = null, $message = "", $status = 400) {
         return $this->success($data, $message, $status, false);
     }
 
@@ -65,8 +62,7 @@ class Controller extends BaseController
      * Send an unauthorized response
      * @return \Illuminate\Http\JsonResponse
      */
-    public function unauthorized()
-    {
+    public function unauthorized() {
         return $this->failed(null, 'Unauthorized', 401);
     }
 
@@ -78,24 +74,21 @@ class Controller extends BaseController
      *
      * @return JwtGuard
      */
-    protected function auth()
-    {
+    protected function auth() {
         return Auth::guard('api');
     }
 
     /**
      * @return User|null
      */
-    protected function user()
-    {
-        return $this->auth()->user() ?: new User();
+    protected function user() {
+        return $this->auth()->user();
     }
 
     /**
      * @return int|string
      */
-    protected function userId()
-    {
+    protected function userId() {
         return $this->auth()->id();
     }
 
@@ -103,8 +96,7 @@ class Controller extends BaseController
      * @param int $default
      * @return int
      */
-    protected function limit($default = 10)
-    {
+    protected function limit($default = 10) {
         return (int) request()->input('limit', $default);
     }
 }
