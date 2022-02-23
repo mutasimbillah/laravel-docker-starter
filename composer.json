@@ -12,6 +12,7 @@
         "laravel/octane": "^1.0",
         "laravel/sanctum": "^2.11",
         "laravel/tinker": "^2.5",
+        "laravel/ui": "^3.4",
         "santigarcor/laratrust": "^6.3",
         "tymon/jwt-auth": "1.*"
     },
